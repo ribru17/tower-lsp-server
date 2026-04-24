@@ -4,8 +4,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
 use ls_types::{
-    ProgressParams, ProgressParamsValue, ProgressToken, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd, WorkDoneProgressReport, notification::Progress as ProgressNotification,
+    ProgressNotification, ProgressParams, ProgressToken, WorkDoneProgressBegin,
+    WorkDoneProgressEnd, WorkDoneProgressReport,
 };
 
 use super::Client;
@@ -115,11 +115,12 @@ impl<B, C> Progress<B, C> {
     /// # Initialization
     ///
     /// This notification will only be sent if the server is initialized.
+    #[allow(clippy::missing_panics_doc)]
     pub async fn begin(self) -> OngoingProgress<B, C> {
         self.client
             .send_notification::<ProgressNotification>(ProgressParams {
                 token: self.token.clone(),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(self.begin_msg)),
+                value: serde_json::to_value(&self.begin_msg).expect("Should be serializable"),
             })
             .await;
 
@@ -155,7 +156,7 @@ impl<B: Sync, C: Sync> OngoingProgress<B, C> {
         self.client
             .send_notification::<ProgressNotification>(ProgressParams {
                 token: self.token.clone(),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(report)),
+                value: serde_json::to_value(&report).expect("Should be serializable"),
             })
             .await;
     }
@@ -349,9 +350,8 @@ impl<B, C> OngoingProgress<B, C> {
         self.client
             .send_notification::<ProgressNotification>(ProgressParams {
                 token: self.token,
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
-                    message,
-                })),
+                value: serde_json::to_value(&WorkDoneProgressEnd { message })
+                    .expect("Should be serializable"),
             })
             .await;
     }
